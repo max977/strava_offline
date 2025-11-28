@@ -34,7 +34,7 @@ No installation required! This is a single-file HTML application that runs entir
 1. **Download the Dashboard**
    ```bash
    # Clone or download the repository
-   git clone https://github.com/yourusername/strava-offline-dashboard.git
+   git clone https://github.com/max977/strava-offline-dashboard.git
    cd strava-offline-dashboard
    ```
 
