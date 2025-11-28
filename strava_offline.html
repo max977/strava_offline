@@ -1,0 +1,1903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strava Offline Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --color-primary: #2196F3;
+            --color-primary-dark: #1976D2;
+            --color-bg: #f5f5f5;
+            --color-surface: #ffffff;
+            --color-text: #333333;
+            --color-text-secondary: #666666;
+            --color-border: #e0e0e0;
+            --color-success: #4CAF50;
+            --color-warning: #FF9800;
+            --color-error: #f44336;
+            --color-run: #f44336;
+            --color-ride: #FF9800;
+            --color-swim: #2196F3;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 8px rgba(0,0,0,0.1);
+            --shadow-lg: 0 8px 16px rgba(0,0,0,0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+            color: white;
+            padding: 32px 16px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 32px;
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .upload-section {
+            background: var(--color-surface);
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .upload-section h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            color: var(--color-text);
+        }
+
+        .upload-controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: var(--color-primary);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+
+        .file-input-label:hover {
+            background: var(--color-primary-dark);
+        }
+
+        .file-info {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            flex: 1;
+            min-width: 200px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: var(--color-primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .filters-section {
+            background: var(--color-surface);
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .filters-section h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            color: var(--color-text);
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 10px 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            color: var(--color-text);
+            font-family: inherit;
+        }
+
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--color-surface);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--color-primary);
+        }
+
+        .stat-card.run {
+            border-left-color: var(--color-run);
+        }
+
+        .stat-card.ride {
+            border-left-color: var(--color-ride);
+        }
+
+        .stat-card.swim {
+            border-left-color: var(--color-swim);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--color-text);
+            margin-bottom: 4px;
+        }
+
+        .stat-unit {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            margin-bottom: 32px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .activities-section,
+        .map-section {
+            background: var(--color-surface);
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--color-border);
+            background: linear-gradient(to right, rgba(33, 150, 243, 0.03), transparent);
+        }
+
+        .section-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .activities-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--color-border);
+            transition: background 0.2s ease;
+            cursor: pointer;
+        }
+
+        .activity-item:hover {
+            background: rgba(33, 150, 243, 0.02);
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            color: var(--color-text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .activity-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .activity-icon.run {
+            background: var(--color-run);
+        }
+
+        .activity-icon.ride {
+            background: var(--color-ride);
+        }
+
+        .activity-icon.swim {
+            background: var(--color-swim);
+        }
+
+        .activity-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .activity-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        #map {
+            width: 100%;
+            height: 600px;
+            background: #f0f0f0;
+        }
+
+        .map-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 600px;
+            color: var(--color-text-secondary);
+            font-size: 14px;
+        }
+
+        .empty-state {
+            padding: 48px 24px;
+            text-align: center;
+            color: var(--color-text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .personal-bests {
+            background: var(--color-surface);
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .personal-bests h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            color: var(--color-text);
+        }
+
+        .bests-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .best-item {
+            padding: 16px;
+            background: rgba(33, 150, 243, 0.02);
+            border-left: 3px solid var(--color-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .best-item:hover {
+            background: rgba(33, 150, 243, 0.08);
+            border-left-color: var(--color-primary-dark);
+            transform: translateX(4px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .best-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .best-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--color-text);
+            margin-bottom: 4px;
+        }
+
+        .best-details {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .best-item.clickable {
+            cursor: pointer;
+        }</parameter>
+
+        footer {
+            text-align: center;
+            padding: 24px;
+            color: var(--color-text-secondary);
+            font-size: 12px;
+            margin-top: 48px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(33, 150, 243, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--color-primary);
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--color-success);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.error {
+            background: var(--color-error);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .scroll-hint {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            padding: 8px 24px;
+            background: rgba(33, 150, 243, 0.02);
+            border-top: 1px solid var(--color-border);
+        }
+
+        .monthly-performance {
+            background: var(--color-surface);
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .monthly-performance h2 {
+            font-size: 18px;
+            margin-bottom: 24px;
+            color: var(--color-text);
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .chart-container {
+            background: rgba(33, 150, 243, 0.01);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--color-border);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-container:hover {
+            background: rgba(33, 150, 243, 0.03);
+            border-color: var(--color-primary);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .clickable-chart {
+            cursor: pointer;
+        }
+
+        .clickable-chart:hover {
+            border-color: var(--color-primary);
+            background: rgba(33, 150, 243, 0.05);
+        }
+
+        .chart-container.active-filter {
+            background: rgba(33, 150, 243, 0.1);
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3);
+        }
+
+        .chart-header {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .chart-canvas {
+            max-height: 250px;
+        }
+
+        .chart-tooltip {
+            position: absolute;
+            background: var(--color-text);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: var(--shadow-lg);
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 24px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .upload-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .file-input-label {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1><i class="fas fa-map-pin"></i> Strava Offline Dashboard</h1>
+            <p>Track your activities offline with local data</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="upload-section">
+            <h2><i class="fas fa-upload"></i> Import Data</h2>
+            <div class="upload-controls">
+                <div class="file-input-wrapper">
+                    <input type="file" id="csvFile" accept=".csv" />
+                    <label for="csvFile" class="file-input-label">
+                        <i class="fas fa-file-csv"></i> Activities CSV
+                    </label>
+                </div>
+                <div class="file-input-wrapper">
+                    <input type="file" id="gpxFolder" webkitdirectory directory />
+                    <label for="gpxFolder" class="file-input-label">
+                        <i class="fas fa-folder"></i> GPX Folder
+                    </label>
+                </div>
+                <button onclick="loadData()" id="submitBtn">
+                    <i class="fas fa-sync"></i> Load & Analyze
+                </button>
+                <div class="file-info" id="fileInfo">No data loaded yet</div>
+            </div>
+        </section>
+
+        <section class="filters-section">
+            <h2><i class="fas fa-filter"></i> Filters</h2>
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label for="typeFilter">Activity Type</label>
+                    <select id="typeFilter" onchange="applyFilters()">
+                        <option value="">All Activities</option>
+                        <option value="Run">Runs</option>
+                        <option value="Ride">Rides</option>
+                        <option value="Swim">Swims</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="dateFromFilter">From Date</label>
+                    <input type="date" id="dateFromFilter" onchange="applyFilters()" />
+                </div>
+                <div class="filter-group">
+                    <label for="dateToFilter">To Date</label>
+                    <input type="date" id="dateToFilter" onchange="applyFilters()" />
+                </div>
+                <div class="filter-group">
+                    <label for="durationFilter">Min Duration (min)</label>
+                    <input type="number" id="durationFilter" min="0" onchange="applyFilters()" />
+                </div>
+            </div>
+        </section>
+
+        <section class="stats-grid" id="statsGrid">
+            <!-- Stats populated by JavaScript -->
+        </section>
+
+        <section class="personal-bests" id="bestsSection" style="display: none;">
+            <h2><i class="fas fa-medal"></i> Personal Bests</h2>
+            <div class="bests-grid" id="bestsGrid"></div>
+        </section>
+
+        <section class="main-content">
+            <div class="activities-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-list"></i> Recent Activities</h2>
+                </div>
+                <div class="activities-list" id="activitiesList">
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>Load CSV and GPX files to see activities</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="map-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-map"></i> Route Map</h2>
+                </div>
+                <div id="map" class="map-placeholder">
+                    <div style="text-align: center;">
+                        <i class="fas fa-map" style="font-size: 32px; opacity: 0.3; margin-bottom: 16px;"></i>
+                        <p>Select an activity to view its route</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+        <section class="monthly-performance" id="monthlyPerformance" style="display: none;">
+            <h2><i class="fas fa-calendar-alt"></i> Monthly Performance</h2>
+            <div class="charts-grid">
+                <div class="chart-container clickable-chart" onclick="filterByMonthYear(this)">
+                    <div class="chart-header">Monthly Distance</div>
+                    <canvas id="monthlyDistanceChart" class="chart-canvas"></canvas>
+                    <div class="chart-info" style="font-size: 11px; color: var(--color-text-secondary); margin-top: 8px; text-align: center;">Click to filter</div>
+                </div>
+                <div class="chart-container clickable-chart" onclick="filterByMonthYear(this)">
+                    <div class="chart-header">Monthly Activities</div>
+                    <canvas id="monthlyActivityChart" class="chart-canvas"></canvas>
+                    <div class="chart-info" style="font-size: 11px; color: var(--color-text-secondary); margin-top: 8px; text-align: center;">Click to filter</div>
+                </div>
+                <div class="chart-container clickable-chart" onclick="filterByMonthYear(this)">
+                    <div class="chart-header">Activity Type Distribution</div>
+                    <canvas id="activityTypeChart" class="chart-canvas"></canvas>
+                    <div class="chart-info" style="font-size: 11px; color: var(--color-text-secondary); margin-top: 8px; text-align: center;">Click to filter</div>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-header">Monthly Average Speed</div>
+                    <canvas id="monthlySpeedChart" class="chart-canvas"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section class="monthly-performance" id="yearlyPerformance" style="display: none;">
+            <h2><i class="fas fa-chart-bar"></i> Yearly Performance</h2>
+            <div class="charts-grid">
+                <div class="chart-container clickable-chart" onclick="filterByYear(this)">
+                    <div class="chart-header">Yearly Distance</div>
+                    <canvas id="yearlyDistanceChart" class="chart-canvas"></canvas>
+                    <div class="chart-info" style="font-size: 11px; color: var(--color-text-secondary); margin-top: 8px; text-align: center;">Click to filter</div>
+                </div>
+                <div class="chart-container clickable-chart" onclick="filterByYear(this)">
+                    <div class="chart-header">Yearly Activities</div>
+                    <canvas id="yearlyActivityChart" class="chart-canvas"></canvas>
+                    <div class="chart-info" style="font-size: 11px; color: var(--color-text-secondary); margin-top: 8px; text-align: center;">Click to filter</div>
+                </div>
+                <div class="chart-container clickable-chart" onclick="filterByYear(this)">
+                    <div class="chart-header">Yearly Type Breakdown</div>
+                    <canvas id="yearlyTypeChart" class="chart-canvas"></canvas>
+                    <div class="chart-info" style="font-size: 11px; color: var(--color-text-secondary); margin-top: 8px; text-align: center;">Click to filter</div>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-header">Yearly Average Speed</div>
+                    <canvas id="yearlySpeedChart" class="chart-canvas"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Last updated: <span id="lastUpdate">Never</span></p>
+        <p style="margin-top: 8px; opacity: 0.7;">© Strava Offline Dashboard | Powered by Leaflet & OpenStreetMap</p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script>
+        let activities = [];
+        let filteredActivities = [];
+        let gpxData = {};
+        let map = null;
+        let routeLayer = null;
+
+        // Initialize map
+        function initMap() {
+            const mapContainer = document.getElementById('map');
+            if (map) {
+                map.remove();
+            }
+            map = L.map(mapContainer).setView([51.505, -0.09], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+            routeLayer = L.featureGroup().addTo(map);
+        }
+
+        // Parse CSV
+        function parseCSV(text) {
+            const lines = text.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            const data = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                const values = parseCSVLine(lines[i]);
+                const obj = {};
+                
+                headers.forEach((header, index) => {
+                    obj[header] = values[index] || '';
+                });
+                
+                if (obj['Activity Date'] && obj['Activity Type']) {
+                    data.push(obj);
+                }
+            }
+            
+            return data;
+        }
+
+        // Parse CSV line handling quoted values
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let insideQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    insideQuotes = !insideQuotes;
+                } else if (char === ',' && !insideQuotes) {
+                    result.push(current.trim().replace(/^"|"$/g, ''));
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            
+            result.push(current.trim().replace(/^"|"$/g, ''));
+            return result;
+        }
+
+        // Parse GPX file
+        function parseGPX(gpxText) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(gpxText, 'text/xml');
+            
+            if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+                console.error('GPX parse error');
+                return null;
+            }
+
+            const coordinates = [];
+            const trkpts = xmlDoc.getElementsByTagName('trkpt');
+            
+            for (let i = 0; i < trkpts.length; i++) {
+                const lat = parseFloat(trkpts[i].getAttribute('lat'));
+                const lon = parseFloat(trkpts[i].getAttribute('lon'));
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    coordinates.push([lat, lon]);
+                }
+            }
+
+            return coordinates.length > 0 ? coordinates : null;
+        }
+
+        // Decompress and parse GPX.GZ files
+        async function parseGPXGZ(arrayBuffer) {
+            try {
+                const decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
+                const gpxText = new TextDecoder().decode(decompressed);
+                return parseGPX(gpxText);
+            } catch (e) {
+                console.error('Failed to decompress GPX.GZ:', e);
+                return null;
+            }
+        }
+
+        // Load data from files
+        async function loadData() {
+            const csvFile = document.getElementById('csvFile').files[0];
+            const gpxFolder = document.getElementById('gpxFolder').files;
+
+            if (!csvFile) {
+                showToast('Please select a CSV file', 'error');
+                return;
+            }
+
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('submitBtn').innerHTML = '<span class="loading"></span> Loading...';
+
+            try {
+                // Parse CSV
+                const csvText = await csvFile.text();
+                activities = parseCSV(csvText);
+
+                // Parse GPX files
+                gpxData = {};
+                for (let file of gpxFolder) {
+                    const filename = file.name;
+                    // Only process .gpx and .gpx.gz files, skip .fit.gz files (binary Garmin format)
+                    if (filename.endsWith('.gpx.gz')) {
+                        const arrayBuffer = await file.arrayBuffer();
+                        const coords = await parseGPXGZ(arrayBuffer);
+                        if (coords) {
+                            // Store by just the base filename (without directory path)
+                            gpxData[filename] = coords;
+                        }
+                    } else if (filename.endsWith('.gpx')) {
+                        const text = await file.text();
+                        const coords = parseGPX(text);
+                        if (coords) {
+                            // Store by just the base filename (without directory path)
+                            gpxData[filename] = coords;
+                        }
+                    }
+                }            filteredActivities = [...activities];
+            updateStats();
+            updateActivitiesList();
+            updatePersonalBests();
+            updateMonthlyPerformance();
+            updateFileInfo();
+
+            const totalRoutes = Object.keys(gpxData).length;
+            const fitSkipped = Array.from(gpxFolder).filter(f => f.name.endsWith('.fit.gz')).length;
+            let message = `Loaded ${activities.length} activities`;
+            if (totalRoutes > 0) message += ` with ${totalRoutes} routes`;
+            if (fitSkipped > 0) message += ` (${fitSkipped} .fit.gz files require conversion to GPX)`;
+            showToast(message);
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showToast('Error loading files: ' + error.message, 'error');
+            } finally {
+                document.getElementById('submitBtn').disabled = false;
+                document.getElementById('submitBtn').innerHTML = '<i class="fas fa-sync"></i> Load & Analyze';
+            }
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const type = document.getElementById('typeFilter').value;
+            const dateFrom = document.getElementById('dateFromFilter').value;
+            const dateTo = document.getElementById('dateToFilter').value;
+            const duration = parseInt(document.getElementById('durationFilter').value) || 0;
+
+            filteredActivities = activities.filter(activity => {
+                if (type && activity['Activity Type'] !== type) return false;
+                
+                const actDate = new Date(activity['Activity Date']);
+                if (dateFrom && actDate < new Date(dateFrom)) return false;
+                if (dateTo && actDate > new Date(dateTo)) return false;
+                
+                const actDuration = parseInt(activity['Moving Time']) / 60 || 0;
+                if (duration && actDuration < duration) return false;
+                
+                return true;
+            });
+
+            updateActivitiesList();
+            updateStats();
+            updatePersonalBests();
+            updateMonthlyPerformance();
+        }
+
+        // Update stats
+        function updateStats() {
+            const statsGrid = document.getElementById('statsGrid');
+            statsGrid.innerHTML = '';
+
+            const stats = {
+                'All Activities': 0,
+                'Total Distance': 0,
+                'Total Time': 0
+            };
+
+            const typeStats = {};
+
+            filteredActivities.forEach(activity => {
+                stats['All Activities']++;
+                // Distance is in meters, convert to km
+                const distanceMeters = parseFloat(activity['Distance']) || 0;
+                const distanceKm = distanceMeters / 1000;
+                
+                // Elapsed Time is in seconds
+                const timeSeconds = parseInt(activity['Elapsed Time']) || 0;
+                
+                stats['Total Distance'] += distanceKm;
+                stats['Total Time'] += timeSeconds;
+
+                const type = activity['Activity Type'];
+                if (!typeStats[type]) {
+                    typeStats[type] = { distance: 0, time: 0, count: 0 };
+                }
+                typeStats[type].distance += distanceKm;
+                typeStats[type].time += timeSeconds;
+                typeStats[type].count++;
+            });
+
+            // Display overall stats
+            const statCards = [
+                { label: 'Total Activities', value: stats['All Activities'], unit: 'activities' },
+                { label: 'Total Distance', value: (stats['Total Distance']).toFixed(1), unit: 'km' },
+                { label: 'Total Time', value: formatTime(stats['Total Time']), unit: '' }
+            ];
+
+            statCards.forEach(stat => {
+                const card = document.createElement('div');
+                card.className = 'stat-card';
+                card.innerHTML = `
+                    <div class="stat-label">${stat.label}</div>
+                    <div class="stat-value">${stat.value}</div>
+                    <div class="stat-unit">${stat.unit}</div>
+                `;
+                statsGrid.appendChild(card);
+            });
+
+            // Display type stats
+            Object.entries(typeStats).forEach(([type, data]) => {
+                const card = document.createElement('div');
+                card.className = `stat-card ${type.toLowerCase()}`;
+                card.innerHTML = `
+                    <div class="stat-label">${type}s</div>
+                    <div class="stat-value">${data.count}</div>
+                    <div class="stat-unit">${data.distance.toFixed(1)} km</div>
+                `;
+                statsGrid.appendChild(card);
+            });
+
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleDateString();
+        }
+
+        // Update activities list
+        function updateActivitiesList() {
+            const list = document.getElementById('activitiesList');
+
+            if (filteredActivities.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No activities match your filters</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const sorted = filteredActivities.sort((a, b) => 
+                new Date(b['Activity Date']) - new Date(a['Activity Date'])
+            );
+
+            list.innerHTML = sorted.map((activity, idx) => {
+                const type = activity['Activity Type'].toLowerCase();
+                const date = new Date(activity['Activity Date']).toLocaleDateString('en-US', 
+                    { weekday: 'short', month: 'short', day: 'numeric' });
+                
+                // Distance is in meters, convert to km
+                const distanceKm = (parseFloat(activity['Distance']) / 1000).toFixed(1);
+                
+                // Elapsed Time is in seconds
+                const elapsedSeconds = parseInt(activity['Elapsed Time']);
+                const time = formatTime(elapsedSeconds);
+                
+                // Calculate speed: distance (meters) / time (seconds) * 3.6 = km/h
+                // Or: distance (km) / time (hours) = km/h
+                const distanceMeters = parseFloat(activity['Distance']) || 0;
+                const timeHours = elapsedSeconds / 3600;
+                const speed = timeHours > 0 ? (distanceMeters / 1000 / timeHours).toFixed(1) : 0;
+                
+                const filename = activity['Filename'];
+
+                return `
+                    <div class="activity-item" onclick="showMap('${filename}', '${activity['Activity Type']}')">
+                        <div class="activity-header">
+                            <div class="activity-title">
+                                <span class="activity-icon ${type}">${getActivityIcon(type)}</span>
+                                <span>${activity['Activity Name']}</span>
+                            </div>
+                            <span style="color: var(--color-text-secondary); font-size: 12px;">${date}</span>
+                        </div>
+                        <div class="activity-meta">
+                            <span><i class="fas fa-ruler"></i> ${distanceKm} km</span>
+                            <span><i class="fas fa-clock"></i> ${time}</span>
+                            <span><i class="fas fa-tachometer-alt"></i> ${speed} km/h</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update personal bests
+        function updatePersonalBests() {
+            const bestsSection = document.getElementById('bestsSection');
+            const bestsGrid = document.getElementById('bestsGrid');
+
+            if (filteredActivities.length === 0) {
+                bestsSection.style.display = 'none';
+                return;
+            }
+
+            const typeStats = {};
+
+            filteredActivities.forEach(activity => {
+                const type = activity['Activity Type'];
+                if (!typeStats[type]) {
+                    typeStats[type] = [];
+                }
+                typeStats[type].push(activity);
+            });
+
+            const bests = [];
+
+            Object.entries(typeStats).forEach(([type, acts]) => {
+                const fastest = acts.reduce((a, b) => {
+                    const elapsedA = parseInt(a['Elapsed Time']) || 1;
+                    const distanceA = parseFloat(a['Distance']) || 0;
+                    const speedA = (distanceA / 1000) / (elapsedA / 3600);
+                    
+                    const elapsedB = parseInt(b['Elapsed Time']) || 1;
+                    const distanceB = parseFloat(b['Distance']) || 0;
+                    const speedB = (distanceB / 1000) / (elapsedB / 3600);
+                    
+                    return speedB > speedA ? b : a;
+                });
+
+                const longest = acts.reduce((a, b) => {
+                    const distA = parseFloat(a['Distance']) / 1000 || 0;
+                    const distB = parseFloat(b['Distance']) / 1000 || 0;
+                    return distB > distA ? b : a;
+                });
+
+                // Calculate fastest speed in km/h
+                const fastestElapsed = parseInt(fastest['Elapsed Time']) || 1;
+                const fastestDistance = parseFloat(fastest['Distance']) || 0;
+                const fastestSpeed = (fastestDistance / 1000) / (fastestElapsed / 3600);
+
+                // Calculate longest distance in km
+                const longestDistance = (parseFloat(longest['Distance']) / 1000).toFixed(1);
+
+                bests.push({
+                    type,
+                    label: `Fastest ${type}`,
+                    value: `${fastestSpeed.toFixed(1)} km/h`,
+                    details: `${fastest['Activity Name']}`,
+                    filename: fastest['Filename']
+                });
+
+                bests.push({
+                    type,
+                    label: `Longest ${type}`,
+                    value: `${longestDistance} km`,
+                    details: `${longest['Activity Name']}`,
+                    filename: longest['Filename']
+                });
+            });
+
+            bestsGrid.innerHTML = bests.map(best => `
+                <div class="best-item" onclick="showMapFromBest('${best.filename}', '${best.type}')">
+                    <div class="best-label">${best.label}</div>
+                    <div class="best-value">${best.value}</div>
+                    <div class="best-details">${best.details}</div>
+                </div>
+            `).join('');
+
+            bestsSection.style.display = 'block';
+        }
+
+        // Show map
+        function showMap(filename, type) {
+            if (!map) {
+                initMap();
+            }
+
+            routeLayer.clearLayers();
+
+            // Extract just the filename from the path (e.g., "activities/14380243710.gpx.gz" -> "14380243710.gpx.gz")
+            const baseFilename = filename.split('/').pop();
+            
+            // Try to find matching GPX file - it might be stored with or without directory prefix
+            let coords = gpxData[filename] || gpxData[baseFilename];
+            
+            // If still not found, search through all GPX files for a partial match
+            if (!coords) {
+                for (const [gpxFile, gpxCoords] of Object.entries(gpxData)) {
+                    if (gpxFile.includes(baseFilename) || baseFilename.includes(gpxFile)) {
+                        coords = gpxCoords;
+                        break;
+                    }
+                }
+            }
+            
+            if (!coords) {
+                showToast('Route data not available for this activity', 'error');
+                return;
+            }
+
+            const polyline = L.polyline(coords, {
+                color: getActivityColor(type.toLowerCase()),
+                weight: 3,
+                opacity: 0.8
+            }).addTo(routeLayer);
+
+            map.fitBounds(polyline.getBounds().pad(0.1));
+        }
+
+        // Show map from personal best click
+        function showMapFromBest(filename, type) {
+            showMap(filename, type);
+        }
+
+        // Helper functions
+        function getActivityIcon(type) {
+            const icons = { run: '🏃', ride: '🚴', swim: '🏊' };
+            return icons[type] || '📍';
+        }
+
+        function getActivityColor(type) {
+            const colors = { run: '#f44336', ride: '#FF9800', swim: '#2196F3' };
+            return colors[type] || '#2196F3';
+        }
+
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+
+            if (hours > 0) {
+                return `${hours}h ${minutes}m`;
+            }
+            return `${minutes}m ${secs}s`;
+        }
+
+        function updateFileInfo() {
+            const csvFile = document.getElementById('csvFile').files[0];
+            const gpxCount = Object.keys(gpxData).length;
+            const info = `✓ CSV: ${csvFile?.name} | Routes: ${gpxCount} files`;
+            document.getElementById('fileInfo').textContent = info;
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i> ${message}`;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        // Charts storage
+        let charts = {};
+        let chartMonthYearData = {}; // Store month-year data for filtering
+        let chartYearData = {}; // Store year data for filtering
+        let activeMonthYearFilter = null;
+        let activeYearFilter = null;
+
+        // Generate monthly performance data
+        function generateMonthlyData() {
+            const monthlyStats = {};
+            const allYears = new Set();
+
+            // Get all unique years from activities
+            activities.forEach(activity => {
+                const date = new Date(activity['Activity Date']);
+                allYears.add(date.getFullYear());
+            });
+
+            // Initialize all months for all years
+            allYears.forEach(year => {
+                for (let i = 0; i < 12; i++) {
+                    const monthKey = `${year}-${String(i + 1).padStart(2, '0')}`;
+                    monthlyStats[monthKey] = {
+                        distance: 0,
+                        count: 0,
+                        time: 0,
+                        byType: { Run: 0, Ride: 0, Swim: 0 },
+                        countByType: { Run: 0, Ride: 0, Swim: 0 }
+                    };
+                }
+            });
+
+            // Aggregate filtered activities by month
+            filteredActivities.forEach(activity => {
+                const date = new Date(activity['Activity Date']);
+                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                
+                if (monthlyStats[monthKey]) {
+                    const distanceMeters = parseFloat(activity['Distance']) || 0;
+                    const timeSeconds = parseInt(activity['Elapsed Time']) || 0;
+                    const type = activity['Activity Type'];
+
+                    monthlyStats[monthKey].distance += distanceMeters / 1000;
+                    monthlyStats[monthKey].count++;
+                    monthlyStats[monthKey].time += timeSeconds;
+                    monthlyStats[monthKey].byType[type] = (monthlyStats[monthKey].byType[type] || 0) + (distanceMeters / 1000);
+                    monthlyStats[monthKey].countByType[type] = (monthlyStats[monthKey].countByType[type] || 0) + 1;
+                }
+            });
+
+            // Store for filtering
+            chartMonthYearData = monthlyStats;
+            return monthlyStats;
+        }
+
+        // Generate yearly performance data
+        function generateYearlyData() {
+            const yearlyStats = {};
+
+            // Get all unique years and initialize
+            const allYears = new Set();
+            activities.forEach(activity => {
+                const date = new Date(activity['Activity Date']);
+                allYears.add(date.getFullYear());
+            });
+
+            Array.from(allYears).sort().forEach(year => {
+                yearlyStats[year] = {
+                    distance: 0,
+                    count: 0,
+                    time: 0,
+                    byType: { Run: 0, Ride: 0, Swim: 0 },
+                    countByType: { Run: 0, Ride: 0, Swim: 0 }
+                };
+            });
+
+            // Aggregate filtered activities by year
+            filteredActivities.forEach(activity => {
+                const date = new Date(activity['Activity Date']);
+                const year = date.getFullYear();
+                
+                if (yearlyStats[year]) {
+                    const distanceMeters = parseFloat(activity['Distance']) || 0;
+                    const timeSeconds = parseInt(activity['Elapsed Time']) || 0;
+                    const type = activity['Activity Type'];
+
+                    yearlyStats[year].distance += distanceMeters / 1000;
+                    yearlyStats[year].count++;
+                    yearlyStats[year].time += timeSeconds;
+                    yearlyStats[year].byType[type] = (yearlyStats[year].byType[type] || 0) + (distanceMeters / 1000);
+                    yearlyStats[year].countByType[type] = (yearlyStats[year].countByType[type] || 0) + 1;
+                }
+            });
+
+            // Store for filtering
+            chartYearData = yearlyStats;
+            return yearlyStats;
+        }
+
+        // Create monthly distance chart
+        function createMonthlyDistanceChart() {
+            const monthlyStats = generateMonthlyData();
+            const months = Object.keys(monthlyStats).map(key => {
+                const [year, month] = key.split('-');
+                return new Date(year, parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            });
+            const distances = Object.values(monthlyStats).map(stat => stat.distance.toFixed(1));
+
+            if (charts.monthlyDistance) charts.monthlyDistance.destroy();
+            const ctx = document.getElementById('monthlyDistanceChart').getContext('2d');
+            charts.monthlyDistance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Distance (km)',
+                        data: distances,
+                        backgroundColor: 'rgba(33, 150, 243, 0.7)',
+                        borderColor: 'rgba(33, 150, 243, 1)',
+                        borderWidth: 2,
+                        borderRadius: 6,
+                        hoverBackgroundColor: 'rgba(33, 150, 243, 0.9)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 12 },
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + ' km';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: 'rgba(0, 0, 0, 0.5)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        x: {
+                            ticks: { color: 'rgba(0, 0, 0, 0.5)' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create monthly activity count chart
+        function createMonthlyActivityChart() {
+            const monthlyStats = generateMonthlyData();
+            const months = Object.keys(monthlyStats).map(key => {
+                const [year, month] = key.split('-');
+                return new Date(year, parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            });
+            const counts = Object.values(monthlyStats).map(stat => stat.count);
+
+            if (charts.monthlyActivity) charts.monthlyActivity.destroy();
+            const ctx = document.getElementById('monthlyActivityChart').getContext('2d');
+            charts.monthlyActivity = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Activities',
+                        data: counts,
+                        borderColor: 'rgba(76, 175, 80, 1)',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointBackgroundColor: 'rgba(76, 175, 80, 1)',
+                        pointHoverRadius: 7,
+                        pointBorderColor: 'white',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + ' activities';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: 'rgba(0, 0, 0, 0.5)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        x: {
+                            ticks: { color: 'rgba(0, 0, 0, 0.5)' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create activity type distribution chart
+        function createActivityTypeChart() {
+            const monthlyStats = generateMonthlyData();
+            const totalByType = { Run: 0, Ride: 0, Swim: 0 };
+            
+            Object.values(monthlyStats).forEach(stat => {
+                Object.entries(stat.byType).forEach(([type, distance]) => {
+                    totalByType[type] += distance;
+                });
+            });
+
+            if (charts.activityType) charts.activityType.destroy();
+            const ctx = document.getElementById('activityTypeChart').getContext('2d');
+            charts.activityType = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Runs', 'Rides', 'Swims'],
+                    datasets: [{
+                        data: [totalByType.Run, totalByType.Ride, totalByType.Swim],
+                        backgroundColor: ['rgba(244, 67, 54, 0.7)', 'rgba(255, 152, 0, 0.7)', 'rgba(33, 150, 243, 0.7)'],
+                        borderColor: ['rgba(244, 67, 54, 1)', 'rgba(255, 152, 0, 1)', 'rgba(33, 150, 243, 1)'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: 'rgba(0, 0, 0, 0.7)', padding: 12 }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed;
+                                    return value.toFixed(1) + ' km';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create monthly speed chart
+        function createMonthlySpeedChart() {
+            const monthlyStats = generateMonthlyData();
+            const months = Object.keys(monthlyStats).map(key => {
+                const [year, month] = key.split('-');
+                return new Date(year, parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            });
+            const speeds = Object.values(monthlyStats).map(stat => {
+                if (stat.time === 0 || stat.distance === 0) return 0;
+                return ((stat.distance / (stat.time / 3600)).toFixed(1));
+            });
+
+            if (charts.monthlySpeed) charts.monthlySpeed.destroy();
+            const ctx = document.getElementById('monthlySpeedChart').getContext('2d');
+            charts.monthlySpeed = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Avg Speed (km/h)',
+                        data: speeds,
+                        borderColor: 'rgba(156, 39, 176, 1)',
+                        backgroundColor: 'rgba(156, 39, 176, 0.15)',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointBackgroundColor: 'rgba(156, 39, 176, 1)',
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.r.toFixed(1) + ' km/h';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        r: {
+                            ticks: { color: 'rgba(0, 0, 0, 0.5)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create yearly distance chart
+        function createYearlyDistanceChart() {
+            const yearlyStats = generateYearlyData();
+            const years = Object.keys(yearlyStats).map(String);
+            const distances = Object.values(yearlyStats).map(stat => stat.distance.toFixed(1));
+
+            if (charts.yearlyDistance) charts.yearlyDistance.destroy();
+            const ctx = document.getElementById('yearlyDistanceChart').getContext('2d');
+            charts.yearlyDistance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: years,
+                    datasets: [{
+                        label: 'Distance (km)',
+                        data: distances,
+                        backgroundColor: 'rgba(33, 150, 243, 0.7)',
+                        borderColor: 'rgba(33, 150, 243, 1)',
+                        borderWidth: 2,
+                        borderRadius: 6,
+                        hoverBackgroundColor: 'rgba(33, 150, 243, 0.9)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + ' km';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: 'rgba(0, 0, 0, 0.5)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        x: {
+                            ticks: { color: 'rgba(0, 0, 0, 0.5)' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create yearly activity count chart
+        function createYearlyActivityChart() {
+            const yearlyStats = generateYearlyData();
+            const years = Object.keys(yearlyStats).map(String);
+            const counts = Object.values(yearlyStats).map(stat => stat.count);
+
+            if (charts.yearlyActivity) charts.yearlyActivity.destroy();
+            const ctx = document.getElementById('yearlyActivityChart').getContext('2d');
+            charts.yearlyActivity = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: years,
+                    datasets: [{
+                        label: 'Activities',
+                        data: counts,
+                        borderColor: 'rgba(76, 175, 80, 1)',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointBackgroundColor: 'rgba(76, 175, 80, 1)',
+                        pointHoverRadius: 7,
+                        pointBorderColor: 'white',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + ' activities';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: 'rgba(0, 0, 0, 0.5)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        x: {
+                            ticks: { color: 'rgba(0, 0, 0, 0.5)' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create yearly type breakdown chart
+        function createYearlyTypeChart() {
+            const yearlyStats = generateYearlyData();
+            const years = Object.keys(yearlyStats).map(String);
+            
+            const runData = years.map(year => yearlyStats[year].byType.Run);
+            const rideData = years.map(year => yearlyStats[year].byType.Ride);
+            const swimData = years.map(year => yearlyStats[year].byType.Swim);
+
+            if (charts.yearlyType) charts.yearlyType.destroy();
+            const ctx = document.getElementById('yearlyTypeChart').getContext('2d');
+            charts.yearlyType = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: years,
+                    datasets: [
+                        {
+                            label: 'Runs (km)',
+                            data: runData,
+                            backgroundColor: 'rgba(244, 67, 54, 0.7)',
+                            borderColor: 'rgba(244, 67, 54, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Rides (km)',
+                            data: rideData,
+                            backgroundColor: 'rgba(255, 152, 0, 0.7)',
+                            borderColor: 'rgba(255, 152, 0, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Swims (km)',
+                            data: swimData,
+                            backgroundColor: 'rgba(33, 150, 243, 0.7)',
+                            borderColor: 'rgba(33, 150, 243, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    indexAxis: 'x',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: 'rgba(0, 0, 0, 0.7)', padding: 12 }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' km';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: false,
+                            ticks: { color: 'rgba(0, 0, 0, 0.5)' },
+                            grid: { display: false }
+                        },
+                        y: {
+                            stacked: false,
+                            ticks: { color: 'rgba(0, 0, 0, 0.5)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create yearly average speed chart
+        function createYearlySpeedChart() {
+            const yearlyStats = generateYearlyData();
+            const years = Object.keys(yearlyStats).map(String);
+            const speeds = Object.values(yearlyStats).map(stat => {
+                if (stat.time === 0 || stat.distance === 0) return 0;
+                return ((stat.distance / (stat.time / 3600)).toFixed(1));
+            });
+
+            if (charts.yearlySpeed) charts.yearlySpeed.destroy();
+            const ctx = document.getElementById('yearlySpeedChart').getContext('2d');
+            charts.yearlySpeed = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: years,
+                    datasets: [{
+                        label: 'Avg Speed (km/h)',
+                        data: speeds,
+                        borderColor: 'rgba(156, 39, 176, 1)',
+                        backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 5,
+                        pointBackgroundColor: 'rgba(156, 39, 176, 1)',
+                        pointHoverRadius: 7,
+                        pointBorderColor: 'white',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y.toFixed(1) + ' km/h';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: 'rgba(0, 0, 0, 0.5)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        x: {
+                            ticks: { color: 'rgba(0, 0, 0, 0.5)' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update monthly performance section
+        function updateMonthlyPerformance() {
+            const monthlySection = document.getElementById('monthlyPerformance');
+            const yearlySection = document.getElementById('yearlyPerformance');
+            
+            if (filteredActivities.length === 0) {
+                monthlySection.style.display = 'none';
+                yearlySection.style.display = 'none';
+                return;
+            }
+
+            monthlySection.style.display = 'block';
+            yearlySection.style.display = 'block';
+            
+            setTimeout(() => {
+                // Monthly charts
+                createMonthlyDistanceChart();
+                createMonthlyActivityChart();
+                createActivityTypeChart();
+                createMonthlySpeedChart();
+                
+                // Yearly charts
+                createYearlyDistanceChart();
+                createYearlyActivityChart();
+                createYearlyTypeChart();
+                createYearlySpeedChart();
+            }, 100);
+        }
+
+        // Filter by month-year selection
+        function filterByMonthYear(element) {
+            // Find the chart and determine which month was clicked
+            const chartCanvas = element.querySelector('canvas');
+            const chartId = chartCanvas.id;
+            
+            // Get the chart instance
+            const chart = Object.values(charts).find(c => c && c.canvas && c.canvas.id === chartId);
+            if (!chart) return;
+
+            // Get last clicked point
+            const canvasPosition = Chart.helpers.getRelativePosition(event, chart);
+            const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
+            
+            if (dataX === undefined || dataX === null) return;
+            
+            const monthLabel = chart.data.labels[Math.round(dataX)];
+            if (!monthLabel) return;
+
+            // Extract year and month from label (e.g., "Jan 25" -> 2025-01)
+            const [monthStr, yearStr] = monthLabel.split(' ');
+            const months = { Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
+                            Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12' };
+            const month = months[monthStr];
+            const year = '20' + yearStr;
+            
+            activeMonthYearFilter = `${year}-${month}`;
+            
+            // Update filter inputs
+            const dateFrom = new Date(`${year}-${month}-01`);
+            const dateToLastDay = new Date(year, parseInt(month), 0);
+            document.getElementById('dateFromFilter').value = dateFrom.toISOString().split('T')[0];
+            document.getElementById('dateToFilter').value = dateToLastDay.toISOString().split('T')[0];
+            
+            // Mark chart as active
+            document.querySelectorAll('.chart-container').forEach(el => el.classList.remove('active-filter'));
+            element.classList.add('active-filter');
+            
+            applyFilters();
+            showToast(`Filtered to ${monthLabel}`);
+        }
+
+        // Filter by year selection
+        function filterByYear(element) {
+            const chartCanvas = element.querySelector('canvas');
+            const chartId = chartCanvas.id;
+            
+            const chart = Object.values(charts).find(c => c && c.canvas && c.canvas.id === chartId);
+            if (!chart) return;
+
+            const canvasPosition = Chart.helpers.getRelativePosition(event, chart);
+            const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
+            
+            if (dataX === undefined || dataX === null) return;
+            
+            const year = chart.data.labels[Math.round(dataX)];
+            if (!year) return;
+
+            activeYearFilter = year;
+            
+            // Update filter inputs
+            document.getElementById('dateFromFilter').value = `${year}-01-01`;
+            document.getElementById('dateToFilter').value = `${year}-12-31`;
+            
+            // Mark chart as active
+            document.querySelectorAll('.chart-container').forEach(el => el.classList.remove('active-filter'));
+            element.classList.add('active-filter');
+            
+            applyFilters();
+            showToast(`Filtered to ${year}`);
+        }
+
+        // Clear chart filters
+        function clearChartFilters() {
+            activeMonthYearFilter = null;
+            activeYearFilter = null;
+            document.querySelectorAll('.chart-container').forEach(el => el.classList.remove('active-filter'));
+        }
+
+        // Initialize map on load
+        window.addEventListener('load', () => {
+            initMap();
+        });
+    </script>
+</body>
+</html>
