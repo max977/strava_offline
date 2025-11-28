@@ -34,12 +34,12 @@ No installation required! This is a single-file HTML application that runs entir
 1. **Download the Dashboard**
    ```bash
    # Clone or download the repository
-   git clone https://github.com/max977/strava-offline-dashboard.git
-   cd strava-offline-dashboard
+   git clone https://github.com/max977/strava_offline.git
+   cd strava_offline
    ```
 
 2. **Open in Browser**
-   - Double-click `index.html` to open it directly in your browser, OR
+   - Double-click `strava_offline.html` to open it directly in your browser, OR
    - Serve it locally using Python:
      ```bash
      # Python 3
